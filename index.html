@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Календарь с пасхалками</title>
+<style>
+:root{--bg:#faf7f2;--card:#fff;--tx:#222;--mu:#8a8178;--ac:#d6453d;--hol:#fde7e4;--bd:#eadfd3;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#17161a;--card:#222126;--tx:#eee;--mu:#9a948c;--ac:#ff6b5e;--hol:#3a2224;--bd:#34323a}}
+:root[data-theme=dark]{--bg:#17161a;--card:#222126;--tx:#eee;--mu:#9a948c;--ac:#ff6b5e;--hol:#3a2224;--bd:#34323a}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100%;transition:transform 1s}
+body.flip{transform:rotate(180deg)}
+body.spooky{animation:flick .5s 6}
+@keyframes flick{0%,100%{filter:none}30%{filter:brightness(.25) hue-rotate(250deg)}60%{filter:brightness(.6)}}
+main{max-width:520px;margin:0 auto;padding:12px}
+header{display:flex;align-items:center;justify-content:space-between;margin:6px 0 10px}
+h1{font-size:20px;margin:0;text-transform:capitalize}
+button{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:8px 12px;cursor:pointer}
+.nav{display:flex;gap:6px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.wd{text-align:center;font-size:12px;color:var(--mu);padding:4px 0}
+.d{aspect-ratio:1/1.1;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:4px;font-size:13px;position:relative;display:flex;flex-direction:column;cursor:pointer;overflow:hidden}
+.d.h{background:var(--hol);border-color:var(--ac)}
+.d.t{outline:2px solid var(--ac)}
+.d.o{opacity:.35}
+.d .e{font-size:20px;text-align:center;margin:auto 0}
+.d i{position:absolute;right:5px;bottom:5px;width:6px;height:6px;border-radius:50%;background:var(--ac)}
+.legend{font-size:12px;color:var(--mu);margin:10px 2px}
+#m{position:fixed;inset:0;background:#0007;display:none;align-items:flex-end;justify-content:center;z-index:5}
+#m.on{display:flex}
+.sh{background:var(--card);width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));max-height:80%;overflow:auto}
+.sh h2{margin:0 0 4px;font-size:20px}.sh .dt{color:var(--mu);font-size:13px}
+.sh .big{font-size:42px}.sh p{margin:8px 0}
+.ev{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--bd)}
+.row{display:flex;gap:6px;margin-top:10px}
+input{flex:1;font:inherit;padding:8px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);min-width:0}
+.d.sp{background:var(--card);border:1px dashed var(--ac)}
+.fx.spin{top:32%;left:calc(50% - 60px);font-size:120px;animation:spin 2.4s ease-out forwards}
+@keyframes spin{from{transform:scale(0) rotate(0)}60%{transform:scale(1.2) rotate(720deg)}to{transform:scale(0) rotate(1080deg);opacity:0}}
+body.shk{animation:shk .15s 20}@keyframes shk{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+body.rb{animation:rb 3s}@keyframes rb{to{filter:hue-rotate(360deg)}}
+.fx{position:fixed;pointer-events:none;z-index:9;font-size:28px;animation:fall 4s linear forwards}
+.fx.rise{animation-name:rise}.fx.burst{animation-name:burst;top:45%;left:50%}
+@keyframes fall{from{transform:translateY(-10vh) rotate(0)}to{transform:translateY(112vh) rotate(360deg)}}
+@keyframes rise{from{transform:translateY(0)}to{transform:translateY(-115vh) rotate(25deg)}}
+@keyframes burst{from{transform:translate(0,0) scale(.3);opacity:1}to{transform:translate(var(--x),var(--y)) scale(1.4);opacity:0}}
+</style></head><body>
+<main>
+<header><h1 id="ttl"></h1><div class="nav"><button id="pv">‹</button><button id="td">Сегодня</button><button id="nx">›</button></div></header>
+<div class="grid" id="g"></div>
+<div class="legend">🎁 Нажми на любой день. Розовые — праздники, пунктирные — бонусные даты. Найдено сюрпризов: <b id="cnt">0</b><br>Подсказка: смайлик в окне, название месяца и кнопка «🎲» умеют больше, чем кажется.</div>
+</main>
+<div id="m"><div class="sh" id="sh"></div></div>
+<script>
+const MN=["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"];
+// праздник: [название, эмодзи, эффект, набор эмодзи, текст]
+const F={
+"1-1":["Новый год","🎄","fall",["❄️","🎄","🎁","✨"],"С Новым годом! Снег пошёл — загадывай желание."],
+"1-7":["Рождество Христово","⭐","fall",["⭐","✨","🔔","🕯️"],"Рождественская звезда зажглась над календарём."],
+"1-14":["Старый Новый год","🥂","burst",["🥂","🎆","🎉"],"Последний шанс загадать желание в этом сезоне."],
+"1-25":["Татьянин день","🎓","fall",["🎓","📚","✏️"],"С днём студента! Зачёт автоматом, пасхалка — по блату."],
+"2-14":["День святого Валентина","💘","rise",["💖","💘","💌","🌹"],"Сердечки летят вверх — как и настроение."],
+"2-23":["День защитника Отечества","🎖️","burst",["🎖️","⭐","🎆","🇷🇺"],"Честь имею! Салют в вашу честь."],
+"3-8":["8 Марта","🌷","fall",["🌷","🌸","🌹","💐"],"Цветочный дождь — для всех замечательных женщин!"],
+"4-1":["День смеха","🤡","flip","","Ой! Всё перевернулось. Не верьте календарю сегодня 😄"],
+"4-12":["День космонавтики","🚀","rise",["🚀","🛰️","🌠"],"Поехали! Гагарин облетел Землю за 108 минут."],
+"5-1":["Праздник Весны и Труда","🌼","fall",["🌼","🌱","☀️","🎈"],"Мир! Труд! Май! И шашлыки."],
+"5-9":["День Победы","🎗️","burst",["🎆","🎇","🎗️","🌹"],"Спасибо за Победу. Бессмертный полк, вечная память."],
+"6-1":["День защиты детей","🎈","rise",["🎈","🍭","🧸","🪁"],"Шарики, конфеты и мишки — всем детям и тем, кто в душе ребёнок."],
+"6-12":["День России","🇷🇺","fall",["🇷🇺","🏔️","🌲","❤️"],"С Днём России! Триколор на каждом шаге."],
+"7-7":["Иван Купала","🌿","fall",["🌿","🔥","🌼","🌸"],"Ищи цветок папоротника — только тс-с!"],
+"7-8":["День семьи, любви и верности","🌼","rise",["🌼","💞","🏡","💍"],"Ромашки — символ праздника. Любит — не любит — любит!"],
+"8-2":["День ВДВ","🪂","fall",["🪂","🔵","⚓"],"Никто, кроме нас! Парашюты пошли."],
+"9-1":["День знаний","🔔","fall",["📚","🔔","✏️","🍎"],"Первый звонок! Пятёрки сыплются с неба."],
+"10-5":["День учителя","🍎","fall",["🍎","📖","🌻","✏️"],"Спасибо всем учителям. Яблоко на парту!"],
+"10-31":["Хэллоуин","🎃","rise",["🎃","👻","🦇","🕷️","💀"],"Бу! Свет моргнул… это точно просто календарь?"],
+"11-4":["День народного единства","🤝","burst",["🇷🇺","🤝","⭐","🔔"],"Вместе мы — сила."],
+"12-31":["Новогодняя ночь","🥂","burst",["🎆","🥂","🎇","🍾","🎄"],"Куранты бьют! Шампанское, мандарины, оливье."],
+"p:-49":["Прощёное воскресенье","🥞","fall",["🥞","☀️","🙏","🔥"],"Прости меня — и я прощаю. Блины с вареньем!"],
+"p:0":["Пасха","🥚","burst",["🥚","🐣","🕊️","🌷","🔔"],"Христос воскресе! Воистину воскресе! 🥚 Яйцо треснуло — и оттуда цыплёнок."],
+"p:49":["Троица","🌿","fall",["🌿","🌳","🌼","🍃"],"Берёзки в доме и зелёная радость."],
+"mom":["День матери","💐","rise",["💐","💗","🤱","🌷"],"Позвони маме — прямо сейчас."]};
+// обычные пасхалки
+const R=[
+["Мёд никогда не портится: в гробницах находили съедобный мёд возрастом 3000 лет.","🍯",["🍯","🐝"],"fall"],
+["Кот одобряет этот день. Не спорь.","🐱",["🐱","😸","🐾"],"fall"],
+["Выпей стакан воды. Просто так. Тело скажет спасибо.","💧",["💧","🥤"],"fall"],
+["Сегодня разрешено ничего не успеть. Это нормально.","🛋️",["🛋️","😌","☕"],"rise"],
+["Осьминог имеет три сердца и голубую кровь.","🐙",["🐙","💙"],"rise"],
+["Улыбнись первому встречному — сегодня это бесплатно.","😊",["😊","🙂","✨"],"burst"],
+["Цитата дня: «Всё будет хорошо. Если не хорошо — значит, это ещё не конец».","📜",["📜","✨"],"fall"],
+["Банан — это ягода, а клубника — нет. Ботаника шутит.","🍌",["🍌","🍓"],"fall"],
+["Сегодня хороший день, чтобы сделать одно маленькое дело, которое откладывал.","✅",["✅","💪"],"burst"],
+["Звёзды над тобой — даже днём. Просто их не видно.","🌟",["🌟","🌙","✨"],"rise"],
+["Чашка кофе — это тоже событие. Отметь в календаре.","☕",["☕","🍪"],"fall"],
+["Пингвины делают предложение, дарив камешек. Романтика!","🐧",["🐧","🪨","💞"],"fall"]];
+const $=s=>document.querySelector(s);
+let cur=new Date();cur.setDate(1);let ev={};
+try{ev=JSON.parse(localStorage.getItem("ev")||"{}")}catch(e){}
+function save(){try{localStorage.setItem("ev",JSON.stringify(ev))}catch(e){}}
+function easter(y){const a=y%4,b=y%7,c=y%19,d=(19*c+15)%30,e=(2*a+4*b-d+34)%7,s=d+e+114;return new Date(y,Math.floor(s/31)-1,s%31+1+13)}
+function hol0(dt){const y=dt.getFullYear(),m=dt.getMonth()+1,d=dt.getDate();
+ if(F[m+"-"+d])return F[m+"-"+d];
+ const E=easter(y),n=Math.round((new Date(y,m-1,d)-new Date(E.getFullYear(),E.getMonth(),E.getDate()))/864e5);
+ if(n==-49||n==0||n==49)return F["p:"+n];
+ if(m==11&&dt.getDay()==0&&d+7>30)return F.mom;return null}
+const S={
+"3-14":["День числа π","🥧","fall",["🥧","🔢","π"],"3,14159265358979… Кусочек пирога по праву твой.",1],
+"5-4":["May the 4th","⚔️","burst",["⚔️","🌌","⭐","🛸"],"Да пребудет с тобой Сила!",1],
+"2-29":["Редкий день","🐸","rise",["🐸","🍀","✨"],"29 февраля бывает раз в четыре года. Ты — свидетель.",1],
+"9-19":["День пиратов","🏴‍☠️","fall",["🏴‍☠️","🦜","⚓","💰"],"Йо-хо-хо! Сегодня говорим «аррр».",1],
+prog:["День программиста","💻","fall",["0️⃣","1️⃣","💻","🐛"],"256-й день года — ровно 2⁸. Баг — не баг, а фича.",1],
+f13:["Пятница, 13-е","🐈‍⬛","shake",["🐈‍⬛","🪞","🕯️"],"Чёрный кот перебежал дорогу. Но ты же не суеверный?",1]};
+function hol(dt){const h=hol0(dt);if(h)return h;const m=dt.getMonth()+1,d=dt.getDate(),doy=Math.round((dt-new Date(dt.getFullYear(),0,0))/864e5);
+ if(S[m+"-"+d])return S[m+"-"+d];if(doy==256)return S.prog;if(d==13&&dt.getDay()==5)return S.f13;return null}
+function reg(dt){return R[(dt.getDate()*3+dt.getMonth())%R.length]}
+function fx(type,em){
+ if(type=="flip"){document.body.classList.add("flip");setTimeout(()=>document.body.classList.remove("flip"),2600);return}
+ if(type=="shake"||type=="rainbow"){const c=type=="shake"?"shk":"rb";document.body.classList.add(c);setTimeout(()=>document.body.classList.remove(c),3200);type="burst"}
+ if(type=="spin"){const s=document.createElement("span");s.className="fx spin";s.textContent=em[0];document.body.appendChild(s);setTimeout(()=>s.remove(),2600);return}
+ const n=type=="burst"?36:30;
+ for(let i=0;i<n;i++){const s=document.createElement("span");s.className="fx "+type;s.textContent=em[i%em.length];
+  s.style.left=Math.random()*95+"vw";
+  if(type=="fall")s.style.top="0";if(type=="rise")s.style.top="100vh";
+  if(type=="burst"){const a=Math.random()*6.28,r=100+Math.random()*180;s.style.setProperty("--x",Math.cos(a)*r+"px");s.style.setProperty("--y",Math.sin(a)*r+"px");s.style.left="50%"}
+  s.style.animationDelay=(type=="burst"?Math.random()*.6:Math.random()*1.6)+"s";
+  s.style.animationDuration=(type=="burst"?1.6:2.6+Math.random()*2)+"s";
+  document.body.appendChild(s);setTimeout(()=>s.remove(),6500)}}
+const key=dt=>dt.getFullYear()+"-"+(dt.getMonth()+1)+"-"+dt.getDate();
+function render(){
+ const y=cur.getFullYear(),m=cur.getMonth();
+ $("#ttl").textContent=MN[m]+" "+y;
+ const g=$("#g");g.innerHTML="";
+ ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"].forEach(w=>{const x=document.createElement("div");x.className="wd";x.textContent=w;g.appendChild(x)});
+ const off=(new Date(y,m,1).getDay()+6)%7,days=new Date(y,m+1,0).getDate(),td=new Date();
+ for(let i=0;i<off;i++)g.appendChild(document.createElement("div"));
+ for(let d=1;d<=days;d++){const dt=new Date(y,m,d),h=hol(dt),c=document.createElement("div");
+  c.className="d"+(h?(h[5]?" sp":" h"):"")+(key(dt)==key(td)?" t":"");
+  c.innerHTML="<b>"+d+"</b>"+(h?'<span class="e">'+h[1]+"</span>":"")+(ev[key(dt)]&&ev[key(dt)].length?"<i></i>":"");
+  c.onclick=()=>open(dt);g.appendChild(c)}}
+function open(dt){
+ const h=hol(dt),r=reg(dt),sh=$("#sh"),k=key(dt);
+ const name=h?h[0]:"Обычный день",em=h?h[1]:r[1],tx=h?h[4]:r[0];
+ sh.innerHTML='<div class="big" id="bg" style="cursor:pointer;user-select:none">'+em+'</div><h2></h2><div class="dt"></div><p></p><div id="el"></div><div class="row"><input id="in" placeholder="Новое событие"><button id="ad">+</button></div><div class="row"><button id="mr" style="flex:1">🎲 Ещё пасхалку</button><button id="cl" style="flex:1">Закрыть</button></div>';
+ sh.querySelector("h2").textContent=name;
+ sh.querySelector(".dt").textContent=dt.toLocaleDateString("ru-RU",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+ sh.querySelector("p").textContent=tx;
+ const em2=h?h[3]:r[2],P=sh.querySelector("p");let tap=0;
+ $("#bg").onclick=()=>{tap++;fx("burst",[em]);if(tap==5){P.textContent="🏆 Скрытая пасхалка: ты слишком любишь тыкать на смайлики!";fx("spin",["🏆"]);mark("tap")}if(tap==12){fx("rainbow",em2);P.textContent="🌈 12 нажатий! Ты официально мастер пасхалок.";mark("tap12")}};
+ $("#mr").onclick=()=>{const T=["fall","rise","burst","shake","rainbow","spin"];fx(T[Math.floor(Math.random()*T.length)],em2);P.textContent=R[Math.floor(Math.random()*R.length)][0];mark("more")};
+ mark(k);
+ const list=()=>{const el=$("#el");el.innerHTML="";(ev[k]||[]).forEach((t,i)=>{const r=document.createElement("div");r.className="ev";const s=document.createElement("span");s.textContent="📌 "+t;const b=document.createElement("button");b.textContent="✕";b.onclick=()=>{ev[k].splice(i,1);save();list();render()};r.append(s,b);el.appendChild(r)})};
+ list();
+ $("#ad").onclick=()=>{const v=$("#in").value.trim();if(!v)return;(ev[k]=ev[k]||[]).push(v);save();$("#in").value="";list();render()};
+ $("#cl").onclick=()=>$("#m").classList.remove("on");
+ $("#m").classList.add("on");
+ if(h){const t=h[2];fx(t,h[3]);if(h[0]=="Хэллоуин"){document.body.classList.add("spooky");setTimeout(()=>document.body.classList.remove("spooky"),3200)}}
+ else fx(r[3],r[2]);}
+$("#m").onclick=e=>{if(e.target.id=="m")$("#m").classList.remove("on")};
+$("#pv").onclick=()=>{cur.setMonth(cur.getMonth()-1);render()};
+$("#nx").onclick=()=>{cur.setMonth(cur.getMonth()+1);render()};
+$("#td").onclick=()=>{cur=new Date();cur.setDate(1);render()};
+R.push(
+["Осьминог не так страшен, как его рисуют. Он просто хочет обнять восемь раз.","🐙",["🐙"],"spin"],
+["Земля вращается со скоростью 1670 км/ч на экваторе. Держись крепче!","🌍",["🌍","🌎","🌏"],"shake"],
+["Вомбаты какают кубиками. Это научный факт.","🟫",["🟫","🐨"],"fall"],
+["Сегодня радуга внутри тебя. Нажми ещё раз — проверим.","🌈",["🌈","☁️"],"rainbow"],
+["В Москве метро открылось в 1935 году. Первая ветка — «Сокольники» — Парк культуры.","🚇",["🚇","🚉"],"rise"],
+["Гречка — не злак, а родственница щавеля.","🌾",["🌾","🍲"],"fall"],
+["Пчела машет крыльями ~230 раз в секунду. Ты тоже можешь, если очень надо.","🐝",["🐝","🍯"],"burst"],
+["Совет дня: если не знаешь, что делать, — потянись и вдохни глубже.","🧘",["🧘","🌿"],"spin"],
+["У тебя есть суперсила: ты умеешь нажимать на календарь. Используй с умом.","🦸",["🦸","⚡","💥"],"burst"],
+["Тапок — лучший друг русского человека. Тапок одобряет.","🩴",["🩴","🛋️"],"fall"],
+["Динозавры жили ближе к нам, чем стегозавр к тираннозавру. Время — странная вещь.","🦖",["🦖","🦕","🌋"],"shake"],
+["Чебурашка и Крокодил Гена: спасибо за «Голубой вагон».","🐻",["🐻","🐊","🍊"],"rise"],
+["Самовар — это тоже технология. Тула гордится.","🫖",["🫖","🥯","🍬"],"fall"],
+["Ёжик в тумане уже ищет лошадь. Лошадь не отвечает.","🦔",["🦔","🌫️","🐴"],"rise"],
+["Один человек в среднем смеётся 15 раз в день. Сегодня ты уже начал?","😂",["😂","🤣","😄"],"burst"],
+["Борщ лучше на второй день. Не спорь.","🍲",["🍲","🥄","🍞"],"fall"],
+["Магнитик на холодильник — маленькое путешествие в большую жизнь.","🧲",["🧲","✈️","🏖️"],"rise"],
+["Если повторять «ку-ку» достаточно долго, часы обидятся.","🕰️",["🕰️","🐦"],"spin"],
+["Лайфхак: чем больше пасхалок найдено, тем выше рейтинг. Проверь счётчик внизу!","📈",["📈","⭐","🏆"],"burst"],
+["Космос пахнет жареным стейком и металлом — так говорят космонавты.","🌌",["🌌","🥩","👨‍🚀"],"rise"],
+["Позвони тому, кому давно собирался. Он, скорее всего, ждёт.","📞",["📞","💬","❤️"],"fall"],
+["Сегодня можно купить себе мороженое. Без повода.","🍦",["🍦","🍨","🍧"],"fall"],
+["Русская зима: за окном −30, а ты в тёплых носках. Победа!","🧦",["🧦","❄️","🔥"],"fall"],
+["Пельмени сами себя не слепят. Но можно всем семейством.","🥟",["🥟","🧄","🧈"],"burst"],
+["Совы не мигают, как люди, — они просто умеют смотреть мудро.","🦉",["🦉","🌙","⭐"],"rise"],
+["Ты это читаешь — значит, день уже удался.","🎯",["🎯","✨"],"spin"]);
+let found=new Set();try{found=new Set(JSON.parse(localStorage.getItem("found")||"[]"))}catch(e){}
+function mark(x){found.add(x);try{localStorage.setItem("found",JSON.stringify([...found]))}catch(e){}$("#cnt").textContent=found.size}
+$("#cnt").textContent=found.size;
+let tt=0;$("#ttl").onclick=()=>{if(++tt==7){tt=0;fx("rainbow",["🌈"]);fx("spin",["🔮"]);mark("title")}};
+const K="ArrowUp,ArrowUp,ArrowDown,ArrowDown,ArrowLeft,ArrowRight,ArrowLeft,ArrowRight,b,a".split(",");let ki=0;
+addEventListener("keydown",e=>{ki=e.key==K[ki]?ki+1:0;if(ki==K.length){ki=0;fx("fall",["🐱","🐶","🦄","🌈"]);fx("rainbow",["✨"]);mark("konami")}});
+render();
+</script></body></html>
